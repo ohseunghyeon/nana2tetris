@@ -12,3 +12,66 @@
 // the screen should remain fully clear as long as no key is pressed.
 
 // Put your code here.
+  @currentColor
+  M=0
+
+(RESET)
+  @SCREEN
+  D=A
+  @screentodraw
+  M=D
+  @colorToDraw
+  M=0
+
+(CHECKKEYBOARD)
+  @KBD
+  D=M
+  @SELECTWHITE
+  D;JEQ
+
+(SELECTBLACK)
+  @colorToDraw
+  M=-1
+  @CHECKIFDRAWNEEDED
+  0;JMP
+
+(SELECTWHITE)
+  @colorToDraw
+  M=0
+
+(CHECKIFDRAWNEEDED)
+  @colorToDraw
+  D=M
+  @currentColor
+  D=D-M
+  @CHECKKEYBOARD
+  D;JEQ
+
+// set current color
+  @colorToDraw
+  D=M
+  @currentColor
+  M=D
+
+(DRAW)
+  @colorToDraw
+  D=M
+
+  @screentodraw
+  A=M // go to screen
+  M=D // draw
+
+  @screentodraw
+  M=M+1 // move to next screen
+  D=M
+
+  @KBD
+  D=A-D // check if the screen reached KBD
+
+  @DRAW
+  D;JNE
+
+// finished drawing
+  @RESET
+  0;JMP
+
