@@ -40,40 +40,46 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+    Not(in=instruction[15], out=notOperation);
+    Mux16(a=aluOut, b=instruction, sel=notOperation, out=entryMuxOut);
 
-    Mux16(a=instruction, b=ALUOut, sel=instruction[15], out=intoARegister);
+    Or(a=notOperation, b=instruction[5], out=intoA);
+    ARegister(in=entryMuxOut, load=intoA, out=A, out[0..14]=addressM);
 
-    Not(in=instruction[15], out=AInstruction);
-    Or(a=AInstruction, b=instruction[5], out=loadA);
-    ARegister(in=intoARegister, load=loadA, out[0..14]=addressM, out=PCin);
-    
+    And(a=instruction[15], b=instruction[12], out=AMSwitch);
+    Mux16(a=A, b=inM, sel=AMSwitch, out=AM);
+
+    And(a=instruction[15], b=instruction[4], out=intoD);
+    DRegister(in=aluOut,load=intoD, out=D);
+
+    ALU(x=D, y=AM, out=aluOut, out=outM,
+        zx=instruction[11],
+        nx=instruction[10],
+        zy=instruction[9],
+        ny=instruction[8],
+        f=instruction[7],
+        no=instruction[6],
+
+        zr=zrOut,
+        ng=ngOut
+    );
+
     And(a=instruction[15], b=instruction[3], out=writeM);
-    Mux16(a=outA, b=inM, sel=instruction[12], out=outAM);
 
-    DRegister(in=ALUOut, load=instruction[4], out=outD);
+    Not(in=ngOut, out=pos);
+    Not(in=zrOut, out=nzr);
+    And(a=instruction[15], b=instruction[0], out=jgt);
+    And(a=pos, b=nzr, out=posnzr);
+    And(a=jgt, b=posnzr, out=ld1);
 
-    // If not instruction then return D in ALU
-    And(a=instruction[11], b=instruction[15], out=zx);   // default 0
-    And(a=instruction[10], b=instruction[15], out=nx);   // default 0
-    Or(a=instruction[9], b=notinstruction, out=zy);      // default 1
-    Or(a=instruction[8], b=notinstruction, out=ny);      // default 1
-    And(a=instruction[7], b=instruction[15], out=f);     // default 0
-    And(a=instruction[6], b=instruction[15], out=no);    // default 0
+    And(a=instruction[15], b=instruction[1], out=jeq);
+    And(a=jeq, b=zrOut, out=ld2);
 
-    ALU(x=outD, y=outAM,
-        zx=zx, nx=nx, zy=zy, ny=ny, f=f, no=no,
-        out=ALUOut, out=outM,
-        zr=zero, ng=negative);
+    And(a=instruction[15], b=instruction[2], out=jlt);
+    And(a=jlt, b=ngOut, out=ld3);
 
-    Or(a=negative, b=zero, out=notpositive);
-    Not(in=notpositive, out=positive);
+    Or(a=ld1, b=ld2, out=ldt);
+    Or(a=ld3, b=ldt, out=ld);
 
-    And(a=instruction[2], b=negative, out=jump0);
-    And(a=instruction[1], b=zero, out=jump1);
-    And(a=instruction[0], b=positive, out=jump2);
-    Or(a=jump0, b=jump1, out=jump01);
-    Or(a=jump01, b=jump2, out=jump012);
-    And(a=jump012, b=instruction[15], out=jump);
-
-    PC(in=PCin, reset=reset, load=jump, inc=true, out[0..14]=pc);
+    PC(in=A, load=ld, inc=true, reset=reset, out[0..14]=pc);
 }
